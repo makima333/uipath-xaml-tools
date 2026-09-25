@@ -1,0 +1,7 @@
+/bin/
+/dist/
+/outputs/
+/work/
+*.exe
+*.test
+*.out
