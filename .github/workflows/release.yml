@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      CGO_ENABLED: '0'
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: v0.1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Test and vet
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build and package
+        shell: bash
+        run: bash scripts/build-release.sh "$VERSION"
+      - name: Verify release version
+        run: |
+          tar -xzf "dist/uix_${VERSION}_linux_amd64.tar.gz" -C "$RUNNER_TEMP"
+          test "$("$RUNNER_TEMP/uix" version)" = "uix $VERSION"
+          (cd dist && sha256sum --check checksums.txt)
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Upload to a draft first so incomplete uploads are not published.
+          # Re-runs reuse the same tag and replace the same assets.
+          if ! gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release create "$VERSION" --target "$GITHUB_SHA" \
+              --title "uix $VERSION" --generate-notes --draft
+          fi
+          gh release upload "$VERSION" dist/* --clobber
+          gh release edit "$VERSION" --draft=false

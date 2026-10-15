@@ -60,6 +60,25 @@ source references. Use it after `index` to load only the relevant workflow.
 
 Emits static `InvokeWorkflowFile` relationships as text or Mermaid.
 
+## Releases
+
+Every push to `main`, including a merged pull request, runs the Release workflow.
+Tests and `go vet` must pass before binaries are published to
+[GitHub Releases](https://github.com/makima333/uipath-xaml-tools/releases).
+The workflow can also be started manually on `main` from the Actions tab.
+
+Release tags use `v0.1.<workflow run number>` (for example, `v0.1.1`). Each run
+creates a new release for its exact commit; re-running the same run reuses its tag.
+The version is embedded in the binary and printed by `uix version`.
+
+Assets include Windows ZIP archives and Linux/macOS tar.gz archives, each for
+AMD64 and ARM64, plus `checksums.txt` with SHA-256 hashes. Extract the archive for
+your platform and run `uix` (`uix.exe` on Windows). No Go installation is needed.
+
+To build the same archives locally, run `bash scripts/build-release.sh v0.1.1`
+from the repository root with Go, Bash, zip, tar, and sha256sum installed.
+Artifacts are written to `dist/`.
+
 ## Development
 
 Requires Go 1.27 or newer.
