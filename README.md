@@ -12,6 +12,8 @@ uix strip [--conservative] [-o DIR] PATH...
 uix index [-o FILE] PROJECT_DIR
 uix read [--refs=false] PROJECT_DIR WORKFLOW
 uix graph [--format text|mermaid] PROJECT_DIR
+uix setup git [REPOSITORY_DIR]
+uix textconv FILE
 uix version
 ```
 
@@ -59,6 +61,39 @@ source references. Use it after `index` to load only the relevant workflow.
 ### graph
 
 Emits static `InvokeWorkflowFile` relationships as text or Mermaid.
+
+### Git diff setup
+
+Place the `uix` binary in a permanent location, then configure a Git working tree:
+
+```powershell
+uix setup git C:\path\to\your\project
+# Or, from inside the repository:
+uix setup git
+git diff
+git diff --cached
+git log -p -- Main.xaml
+```
+
+Setup registers `diff.uix.textconv` in the repository's local Git config and
+appends a case-insensitive XAML rule to Git's local `info/attributes` file.
+Existing attributes are retained; the local rule takes precedence over tracked
+XAML diff attributes. No global config or tracked `.gitattributes` is changed.
+Run setup once per clone. Repeating it is safe.
+
+Git uses `uix textconv FILE` to render both versions as compact IR without
+designer IDs. This command also accepts Git's temporary files without a XAML
+extension. The original XAML stays unchanged. Invalid XAML causes conversion
+to fail with an error.
+
+The current executable's absolute path is stored, including proper quoting for
+spaces. If you move or rename the executable, run setup again. Conversion
+caching is disabled so upgrading the executable does not retain stale IR.
+
+Use `git diff --no-textconv` for the original XML diff. Compact IR omits designer
+metadata and some defaults; it is a reading aid, not an exhaustive XML diff or
+an applicable patch. See Git's [textconv documentation](https://git-scm.com/docs/gitattributes#_performing_text_diffs_of_binary_files).
+Local configuration does not change GitHub's web diff or install a merge driver.
 
 ## Releases
 

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/makima333/uipath-xaml-tools/internal/gitdiff"
 	"github.com/makima333/uipath-xaml-tools/internal/normalize"
 	"github.com/makima333/uipath-xaml-tools/internal/project"
 	"github.com/makima333/uipath-xaml-tools/internal/render"
@@ -26,6 +27,8 @@ Usage:
   uix index [-o FILE] PROJECT_DIR
   uix read [--refs=false] PROJECT_DIR WORKFLOW
   uix graph [--format text|mermaid] PROJECT_DIR
+  uix setup git [REPOSITORY_DIR]
+  uix textconv FILE
   uix version
 `
 
@@ -51,9 +54,68 @@ func Run(args []string, stdout, stderr io.Writer, version string) error {
 		return runRead(args[1:], stdout)
 	case "graph":
 		return runGraph(args[1:], stdout)
+	case "setup":
+		return runSetup(args[1:], stdout, stderr)
+	case "textconv":
+		return runTextconv(args[1:], stdout, stderr)
 	default:
 		return fmt.Errorf("unknown command %q\n\n%s", args[0], usage)
 	}
+}
+
+func runSetup(args []string, stdout, stderr io.Writer) error {
+	isGit := len(args) > 0 && args[0] == "git"
+	if isGit {
+		args = args[1:]
+	}
+	flags := flag.NewFlagSet("setup", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	flags.Usage = func() { fmt.Fprintln(stderr, "Usage: uix setup git [REPOSITORY_DIR]") }
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if !isGit || flags.NArg() > 1 {
+		return fmt.Errorf("setup requires: git [REPOSITORY_DIR]")
+	}
+	directory := "."
+	if flags.NArg() == 1 {
+		directory = flags.Arg(0)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	if err := gitdiff.Setup(directory, executable); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(stdout, "Configured repository-local XAML diffs with uix. Run git diff or git log -p.\nKeep this uix executable at its current location, or run setup again after moving it.")
+	return err
+}
+
+func runTextconv(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("textconv", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	flags.Usage = func() {
+		fmt.Fprintln(stderr, "Usage: uix textconv FILE\nConvert one file to compact IR for Git, including temporary files without an extension.")
+	}
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if flags.NArg() != 1 {
+		return fmt.Errorf("textconv requires one file")
+	}
+	result, err := compactFile(flags.Arg(0), false)
+	if err != nil {
+		return err
+	}
+	_, err = io.WriteString(stdout, result)
+	return err
 }
 
 func runCompact(args []string, stdout, stderr io.Writer) error {

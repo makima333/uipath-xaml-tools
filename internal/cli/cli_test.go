@@ -47,3 +47,15 @@ func TestSubcommandHelpIsNotAnError(t *testing.T) {
 		t.Fatalf("help output missing usage: %s", stderr.String())
 	}
 }
+
+func TestGitCommandHelp(t *testing.T) {
+	for _, args := range [][]string{{"setup", "-h"}, {"setup", "git", "-h"}, {"textconv", "-h"}} {
+		var stdout, stderr bytes.Buffer
+		if err := cli.Run(args, &stdout, &stderr, "test"); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if !strings.Contains(stderr.String(), "Usage:") {
+			t.Fatalf("%v: missing help: %s", args, stderr.String())
+		}
+	}
+}
